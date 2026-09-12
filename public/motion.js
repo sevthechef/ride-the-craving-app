@@ -1,10 +1,31 @@
-const DURATION_MS=180000;const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;let raf=0;
+const DURATION_MS=180000;
+const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let raf=0,lastBreath='';
 function startTime(){try{return Number(JSON.parse(localStorage.getItem('ride-craving-v5'))?.rideStartedAt)||0}catch{return 0}}
-function decor(sea){if(!sea.querySelector('.spray')){let e=document.createElement('div');e.className='spray';sea.append(e)}if(!sea.querySelector('.gulls')){let e=document.createElement('div');e.className='gulls';sea.append(e)}}
-function loop(){const s=document.querySelector('#surfer'),sea=document.querySelector('#seascape'),wave=document.querySelector('.wave-svg'),foam=document.querySelector('.foam-path');if(s&&sea){decor(sea);const started=startTime();if(started){const t=performance.now(),p=Math.max(0,Math.min(1,(Date.now()-started)/DURATION_MS)),crest=Math.sin(Math.PI*p),carve=reduced?0:Math.sin(t/520)*(3+7*crest),micro=reduced?0:Math.sin(t/180)*1.2;const x=12+72*p,y=61-31*crest+12*p+carve+micro,angle=-14*Math.cos(Math.PI*p)+(reduced?0:Math.sin(t/390)*7),scale=1+.08*crest-(p>.86?(p-.86)*.45:0);s.style.left=x+'%';s.style.top=y+'%';s.style.transform=`translate(-50%,-50%) rotate(${angle}deg) scale(${scale})`;const spray=sea.querySelector('.spray');if(spray){spray.style.left=`calc(${x}% - 78px)`;spray.style.top=`calc(${y}% + 32px)`;spray.style.transform=`rotate(${angle-22}deg) scale(${.7+crest*.55})`;spray.style.opacity=reduced?'0':String(.48+crest*.46)}if(wave&&!reduced){const drift=Math.sin(t/900)*7,lift=Math.sin(t/1250)*2.2,swell=1+Math.sin(t/1100)*.024;wave.style.transform=`translate(${drift}px,${lift}px) scaleY(${swell})`;wave.style.transformOrigin='45% 76%'}if(foam&&!reduced){foam.style.strokeDasharray='18 8';foam.style.strokeDashoffset=String(-(t/45)%52)}const gulls=sea.querySelector('.gulls');if(gulls&&!reduced)gulls.style.transform=`translate(${Math.sin(t/1800)*12}px,${Math.sin(t/1200)*4}px)`}}
-raf=requestAnimationFrame(loop)}
+function decor(sea){
+  if(!sea.querySelector('.spray')){let e=document.createElement('div');e.className='spray';sea.append(e)}
+  if(!sea.querySelector('.gulls')){let e=document.createElement('div');e.className='gulls';sea.append(e)}
+  if(!sea.querySelector('.breath-guide')){let e=document.createElement('div');e.className='breath-guide';e.innerHTML='<span class="breath-orb"></span><strong class="breath-word">Breathe in</strong>';sea.append(e)}
+}
+function haptic(phase){if(phase===lastBreath)return;lastBreath=phase;if(navigator.vibrate){try{navigator.vibrate(phase==='in'?[45]:[35,70,35])}catch{}}}
+function loop(){
+ const s=document.querySelector('#surfer'),sea=document.querySelector('#seascape'),wave=document.querySelector('.wave-svg'),foam=document.querySelector('.foam-path');
+ if(s&&sea){decor(sea);const started=startTime();if(started){
+  const t=performance.now(),p=Math.max(0,Math.min(1,(Date.now()-started)/DURATION_MS)),crest=Math.sin(Math.PI*p);
+  const cycle=((Date.now()-started)%10000)/1000,breath=cycle<4?'in':'out',breathP=cycle<4?cycle/4:(cycle-4)/6;
+  haptic(breath);
+  const word=sea.querySelector('.breath-word'),orb=sea.querySelector('.breath-orb');if(word)word.textContent=breath==='in'?'Breathe in':'Breathe out';if(orb){const q=breath==='in'?breathP:1-breathP;orb.style.transform=`scale(${.72+q*.42})`;orb.style.opacity=String(.48+q*.42)}
+  const carve=reduced?0:Math.sin(t/470)*(4+8*crest),micro=reduced?0:Math.sin(t/155)*1.1;
+  const x=12+72*p,y=61-31*crest+12*p+carve+micro,angle=-16*Math.cos(Math.PI*p)+(reduced?0:Math.sin(t/360)*8),scale=1+.1*crest-(p>.86?(p-.86)*.45:0);
+  s.style.left=x+'%';s.style.top=y+'%';s.style.transform=`translate(-50%,-50%) rotate(${angle}deg) scale(${scale})`;
+  s.style.setProperty('--crouch',String(crest));
+  const spray=sea.querySelector('.spray');if(spray){spray.style.left=`calc(${x}% - 72px)`;spray.style.top=`calc(${y}% + 31px)`;spray.style.transform=`rotate(${angle-22}deg) scale(${.75+crest*.7})`;spray.style.opacity=reduced?'0':String(.48+crest*.5)}
+  if(wave&&!reduced){const drift=Math.sin(t/900)*7,lift=Math.sin(t/1250)*2.2,swell=1+Math.sin(t/1100)*.024;wave.style.transform=`translate(${drift}px,${lift}px) scaleY(${swell})`;wave.style.transformOrigin='45% 76%'}
+  if(foam&&!reduced){foam.style.strokeDasharray='18 8';foam.style.strokeDashoffset=String(-(t/45)%52)}
+  const gulls=sea.querySelector('.gulls');if(gulls&&!reduced)gulls.style.transform=`translate(${Math.sin(t/1800)*12}px,${Math.sin(t/1200)*4}px)`;
+ }}
+ raf=requestAnimationFrame(loop)
+}
 function start(){cancelAnimationFrame(raf);raf=requestAnimationFrame(loop)}start();addEventListener('pageshow',start);document.addEventListener('visibilitychange',()=>{if(!document.hidden)start()});
 
-// Home poster: resolve the action from the tap position on the artwork itself.
-// Capture phase prevents the old transparent overlays from stealing the tap.
 document.addEventListener('click',event=>{const screen=event.target.closest('.screen');const hero=screen?.querySelector('.hero-card');if(!hero)return;if(!event.target.closest('.hero-card,.hero-actions,.home-meta'))return;const r=hero.getBoundingClientRect();if(!r.width||!r.height)return;const x=(event.clientX-r.left)/r.width,y=(event.clientY-r.top)/r.height;const startWave=x>=.075&&x<=.665&&y>=.252&&y<=.306;const waves=x>=.075&&x<=.555&&y>=.315&&y<=.365;if(startWave){event.preventDefault();event.stopImmediatePropagation();document.querySelector('[data-action="start"]')?.click()}else if(waves){event.preventDefault();event.stopImmediatePropagation();document.querySelector('[data-action="history"]')?.click()}},true);
