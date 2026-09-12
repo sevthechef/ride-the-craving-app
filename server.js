@@ -14,6 +14,8 @@ const mime = {
   '.json': 'application/json; charset=utf-8',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
   '.ico': 'image/x-icon'
 };
 
@@ -21,6 +23,16 @@ const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `http://${req.headers.host}`);
     let requestPath = decodeURIComponent(url.pathname);
+
+    if (requestPath === '/poster.jpg' && process.env.POSTER_B64) {
+      const data = Buffer.from(process.env.POSTER_B64, 'base64');
+      res.writeHead(200, {
+        'Content-Type': 'image/jpeg',
+        'Cache-Control': 'public, max-age=86400'
+      });
+      return res.end(data);
+    }
+
     if (requestPath === '/') requestPath = '/index.html';
 
     const safePath = path.normalize(requestPath).replace(/^([.][.][/\\])+/, '');
